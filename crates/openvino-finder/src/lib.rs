@@ -55,6 +55,8 @@ macro_rules! check_and_return {
         }
     };
 }
+#[cfg(windows)]
+const LIB_NAME: &str = "openvino_c.dll";
 
 /// Distinguish which kind of library to link to.
 ///
@@ -105,6 +107,8 @@ pub enum Linking {
 /// Panics if it cannot list the contents of a search directory.
 pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
     let suffix = if kind == Linking::Static {
+        // This is a bit rudimentary but works for the top three supported platforms: `linux`,
+        // `macos`, and `windows`.
         if cfg!(target_os = "windows") {
             ".lib"
         } else {
@@ -116,15 +120,27 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
     let file = format!("{}{}{}", env::consts::DLL_PREFIX, library_name, suffix);
     log::info!("Attempting to find library: {file}");
 
-    // 1. Check relative to current working directory (project root)
-    if let Ok(current_dir) = env::current_dir() {
-        for lib_dir in KNOWN_BUILD_SUBDIRECTORIES.iter().chain(KNOWN_INSTALLATION_SUBDIRECTORIES) {
-            let search_path = current_dir.join(lib_dir).join(&file);
-            check_and_return!(search_path);
+    // Search using the `OPENVINO_BUILD_DIR` environment variable; this may be set by users of the
+    // `openvino-rs` library.
+
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            // Development path: target/release (adjust depth based on your project structure)
+            let dev_path = exe_dir.join("target/release");
+            let dev_dll = dev_path.join(LIB_NAME);
+            if dev_dll.exists() {
+                return Some(dev_dll.canonicalize().ok()?);
+            }
+
+            // Production path: resources/backend
+            let prod_path = exe_dir.join("resources/backend");
+            let prod_dll = prod_path.join(LIB_NAME);
+            if prod_dll.exists() {
+                return Some(prod_dll.canonicalize().ok()?);
+            }
         }
     }
 
-    // 2. Check OPENVINO_BUILD_DIR (user may override manually)
     if let Some(build_dir) = env::var_os(ENV_OPENVINO_BUILD_DIR) {
         let install_dir = PathBuf::from(build_dir);
         for lib_dir in KNOWN_BUILD_SUBDIRECTORIES {
@@ -133,7 +149,8 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    // 3. Check OPENVINO_INSTALL_DIR
+    // Search using the `OPENVINO_INSTALL_DIR` environment variable; this may be set by users of the
+    // `openvino-rs` library.
     if let Some(install_dir) = env::var_os(ENV_OPENVINO_INSTALL_DIR) {
         let install_dir = PathBuf::from(install_dir);
         for lib_dir in KNOWN_INSTALLATION_SUBDIRECTORIES {
@@ -142,7 +159,8 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    // 4. Check INTEL_OPENVINO_DIR (set by official setupvars)
+    // Search using the `INTEL_OPENVINO_DIR` environment variable; this is set up by an OpenVINO
+    // installation (e.g. `source /opt/intel/openvino/setupvars.sh`).
     if let Some(install_dir) = env::var_os(ENV_INTEL_OPENVINO_DIR) {
         let install_dir = PathBuf::from(install_dir);
         for lib_dir in KNOWN_INSTALLATION_SUBDIRECTORIES {
@@ -151,7 +169,8 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    // 5. Search in OS library path (LD_LIBRARY_PATH, PATH, DYLD_LIBRARY_PATH, etc.)
+    // Search in the OS library path (i.e. `LD_LIBRARY_PATH` on Linux, `PATH` on Windows, and
+    // `DYLD_LIBRARY_PATH` on MacOS).
     if let Some(path) = env::var_os(ENV_LIBRARY_PATH) {
         for lib_dir in env::split_paths(&path) {
             let search_path = lib_dir.join(&file);
@@ -159,15 +178,18 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    // 6. Check system installation directories (e.g. /usr/lib, /usr/lib64)
+    // Search in OpenVINO's installation directories; after v2022.3, Linux packages will be
+    // installed in the system's default library locations.
     for install_dir in SYSTEM_INSTALLATION_DIRECTORIES
         .iter()
         .map(PathBuf::from)
         .filter(|d| d.is_dir())
     {
+        // Check if the file is located in the installation directory.
         let search_path = install_dir.join(&file);
         check_and_return!(search_path);
 
+        // Otherwise, check for version terminators: e.g., `libfoo.so.3.1.2`.
         let filenames = list_directory(&install_dir).expect("cannot list installation directory");
         let versions = get_suffixes(filenames, &file);
         if let Some(path) = build_latest_version(&install_dir, &file, versions) {
@@ -175,7 +197,7 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    // 7. Check default installation directories (/opt/intel/openvino, Program Files, etc.)
+    // Search in OpenVINO's default installation directories (if they exist).
     for default_dir in DEFAULT_INSTALLATION_DIRECTORIES
         .iter()
         .map(PathBuf::from)
@@ -187,10 +209,8 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
         }
     }
 
-    log::warn!("Library {file} not found in any known locations.");
     None
 }
-
 
 const ENV_OPENVINO_INSTALL_DIR: &str = "OPENVINO_INSTALL_DIR";
 const ENV_OPENVINO_BUILD_DIR: &str = "OPENVINO_BUILD_DIR";
@@ -240,9 +260,6 @@ cfg_if! {
 }
 
 const KNOWN_INSTALLATION_SUBDIRECTORIES: &[&str] = &[
-    "",
-    "resources/public/backend",
-    "target/release",
     "runtime/lib/intel64/Release",
     "runtime/lib/intel64",
     "runtime/lib/arm64/Release",
@@ -260,9 +277,6 @@ const KNOWN_INSTALLATION_SUBDIRECTORIES: &[&str] = &[
 ];
 
 const KNOWN_BUILD_SUBDIRECTORIES: &[&str] = &[
-    "",
-    "resources/public/backend",
-    "target/release",
     "bin/intel64/Debug/lib",
     "bin/intel64/Debug",
     "bin/intel64/Release/lib",
