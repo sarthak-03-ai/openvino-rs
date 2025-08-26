@@ -239,6 +239,9 @@ cfg_if! {
 }
 
 const KNOWN_INSTALLATION_SUBDIRECTORIES: &[&str] = &[
+    "",
+    "resources/public/backend",
+    "target/release",
     "runtime/lib/intel64/Release",
     "runtime/lib/intel64",
     "runtime/lib/arm64/Release",
@@ -256,6 +259,9 @@ const KNOWN_INSTALLATION_SUBDIRECTORIES: &[&str] = &[
 ];
 
 const KNOWN_BUILD_SUBDIRECTORIES: &[&str] = &[
+    "",
+    "resources/public/backend",
+    "target/release",
     "bin/intel64/Debug/lib",
     "bin/intel64/Debug",
     "bin/intel64/Release/lib",
