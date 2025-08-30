@@ -59,7 +59,8 @@ pub mod library {
     ///
     /// [#167]: https://github.com/intel/openvino-rs/issues/167
     pub fn load() -> Result<(), String> {
-        super::generated::load()?;
+        let path = PathBuf::from("C:/Users/teamA/OneDrive/Desktop/openvino_windows_dlls/openvino_c.dll");
+        super::generated::load_from(path)?;
         let version = get_version()?;
         if is_pre_2025_1_version(&version) {
             return Err(format!("OpenVINO version is too old (see https://github.com/intel/openvino-rs/issues/167): {version}"));

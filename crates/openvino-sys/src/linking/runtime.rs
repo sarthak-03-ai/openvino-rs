@@ -77,7 +77,7 @@ macro_rules! link {
                 Some(path) => load_from(path),
             }
         }
-        fn load_from(path: PathBuf) -> Result<(), String> {
+        pub fn load_from(path: PathBuf) -> Result<(), String> {
             let library = Arc::new(SharedLibrary::load(path)?);
             *LIBRARY.write().unwrap() = Some(library);
             Ok(())
