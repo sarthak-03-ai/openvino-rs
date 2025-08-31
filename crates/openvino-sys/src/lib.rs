@@ -76,6 +76,7 @@ pub fn load() -> Result<(), String> {
         PathBuf::from("target/release").join(&libname),
         PathBuf::from("resources/public/backend").join(&libname),
         PathBuf::from("resources/target").join(&libname),
+        PathBuf::from("../Resources/public/backend").join(&libname),
     ];
 
     // pick the first that exists
