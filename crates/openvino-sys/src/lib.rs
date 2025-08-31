@@ -70,13 +70,19 @@ pub fn load() -> Result<(), String> {
         env::consts::DLL_PREFIX,
         env::consts::DLL_SUFFIX
     );
-
+    // base dir = folder of the current executable
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("Failed to get exe path: {e}"))?
+        .parent()
+        .ok_or("Executable has no parent directory")?
+        .to_path_buf();
     // candidate relative paths
     let candidates = [
-        PathBuf::from("target/release").join(&libname),
-        PathBuf::from("resources/public/backend").join(&libname),
-        PathBuf::from("resources/target").join(&libname),
-        PathBuf::from("../Resources/public/backend").join(&libname),
+        exe_dir.join("").join(&libname),
+        exe_dir.join("target/release").join(&libname),
+        exe_dir.join("resources/public/backend").join(&libname),
+        exe_dir.join("resources/target").join(&libname),
+        exe_dir.join("../Resources/public/backend").join(&libname),
     ];
 
     // pick the first that exists
