@@ -58,7 +58,7 @@ pub mod library {
     /// unintentionally use the wrong type when creating tensors (see [#167]).
     ///
     /// [#167]: https://github.com/intel/openvino-rs/issues/167
-    use std::path::PathBuf;
+    // use std::path::PathBuf;
 use std::env;
 
 pub fn load() -> Result<(), String> {
