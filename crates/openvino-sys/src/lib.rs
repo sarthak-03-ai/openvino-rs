@@ -58,15 +58,44 @@ pub mod library {
     /// unintentionally use the wrong type when creating tensors (see [#167]).
     ///
     /// [#167]: https://github.com/intel/openvino-rs/issues/167
-    pub fn load() -> Result<(), String> {
-        let path = PathBuf::from("C:/Users/teamA/OneDrive/Desktop/openvino_windows_dlls/openvino_c.dll");
-        super::generated::load_from(path)?;
-        let version = get_version()?;
-        if is_pre_2025_1_version(&version) {
-            return Err(format!("OpenVINO version is too old (see https://github.com/intel/openvino-rs/issues/167): {version}"));
-        }
-        Ok(())
+    use std::path::PathBuf;
+use std::env;
+
+pub fn load() -> Result<(), String> {
+    super::generated::load()?; // load symbols
+
+    // library filename depending on OS
+    let libname = format!(
+        "{}openvino_c{}",
+        env::consts::DLL_PREFIX,
+        env::consts::DLL_SUFFIX
+    );
+
+    // candidate relative paths
+    let candidates = [
+        PathBuf::from("target/release").join(&libname),
+        PathBuf::from("resources/public/backend").join(&libname),
+        PathBuf::from("resources/target").join(&libname),
+    ];
+
+    // pick the first that exists
+    let path = candidates
+        .iter()
+        .find(|p| p.exists())
+        .ok_or_else(|| "Could not find OpenVINO runtime library in app paths".to_string())?;
+
+    super::generated::load_from(path.clone())?;
+
+    let version = get_version()?;
+    if is_pre_2025_1_version(&version) {
+        return Err(format!(
+            "OpenVINO version is too old (see https://github.com/intel/openvino-rs/issues/167): {version}"
+        ));
     }
+
+    Ok(())
+}
+
 
     /// Retrieve the OpenVINO library's version string.
     fn get_version() -> Result<String, String> {
