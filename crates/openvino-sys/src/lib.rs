@@ -62,7 +62,7 @@ pub mod library {
 use std::env;
 
 pub fn load() -> Result<(), String> {
-    super::generated::load()?; // load symbols
+    // super::generated::load()?; // load symbols
 
     // library filename depending on OS
     let libname = format!(
