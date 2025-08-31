@@ -55,8 +55,6 @@ macro_rules! check_and_return {
         }
     };
 }
-#[cfg(windows)]
-const LIB_NAME: &str = "openvino_c.dll";
 
 /// Distinguish which kind of library to link to.
 ///
@@ -123,23 +121,23 @@ pub fn find(library_name: &str, kind: Linking) -> Option<PathBuf> {
     // Search using the `OPENVINO_BUILD_DIR` environment variable; this may be set by users of the
     // `openvino-rs` library.
 
-    if let Ok(exe_path) = env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            // Development path: target/release (adjust depth based on your project structure)
-            let dev_path = exe_dir.join("target/release");
-            let dev_dll = dev_path.join(LIB_NAME);
-            if dev_dll.exists() {
-                return Some(dev_dll.canonicalize().ok()?);
-            }
+    // if let Ok(exe_path) = env::current_exe() {
+    //     if let Some(exe_dir) = exe_path.parent() {
+    //         // Development path: target/release (adjust depth based on your project structure)
+    //         let dev_path = exe_dir.join("target/release");
+    //         let dev_dll = dev_path.join(LIB_NAME);
+    //         if dev_dll.exists() {
+    //             return Some(dev_dll.canonicalize().ok()?);
+    //         }
 
-            // Production path: resources/backend
-            let prod_path = exe_dir.join("resources/backend");
-            let prod_dll = prod_path.join(LIB_NAME);
-            if prod_dll.exists() {
-                return Some(prod_dll.canonicalize().ok()?);
-            }
-        }
-    }
+    //         // Production path: resources/backend
+    //         let prod_path = exe_dir.join("resources/backend");
+    //         let prod_dll = prod_path.join(LIB_NAME);
+    //         if prod_dll.exists() {
+    //             return Some(prod_dll.canonicalize().ok()?);
+    //         }
+    //     }
+    // }
 
     if let Some(build_dir) = env::var_os(ENV_OPENVINO_BUILD_DIR) {
         let install_dir = PathBuf::from(build_dir);
