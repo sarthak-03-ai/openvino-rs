@@ -158,3 +158,33 @@ impl fmt::Display for ElementType {
         }
     }
 }
+
+/// helper trait for type conversions
+pub trait OpenVinoElement {
+    /// ElementType which corresponds to the type for which this trait is implemented
+    const ELEMENT_TYPE: ElementType;
+}
+
+mod private {
+    pub trait Sealed {}
+}
+
+macro_rules! impl_openvino_element {
+    ($($t:ty => $et:expr),* $(,)?) => {
+        $(
+            impl private::Sealed for $t {}
+
+            impl OpenVinoElement for $t {
+                const ELEMENT_TYPE: ElementType = $et;
+            }
+        )*
+    };
+}
+
+impl_openvino_element!(
+    f32 => ElementType::F32,
+    f64 => ElementType::F64,
+    i32 => ElementType::I32,
+    i64 => ElementType::I64,
+    u8  => ElementType::U8,
+);
